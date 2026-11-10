@@ -1,0 +1,6 @@
+{
+  "name": "Math AI-QMZh — Математика, алгебра және геометрия ҚМЖ генераторы",
+  "description": "ҚР Оқу-ағарту министрлігінің №130 бұйрығына сай математика, алгебра, геометрия пәндеріне арналған кәсіби ҚМЖ генераторы.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
