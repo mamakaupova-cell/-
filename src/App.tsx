@@ -203,6 +203,7 @@ export default function App() {
             ) : (
               <QMZhForm
                 language={language}
+                onLanguageChange={setLanguage}
                 initialSubject={selectedSubject}
                 initialGrade={selectedGrade}
                 initialTopic={selectedTopic}

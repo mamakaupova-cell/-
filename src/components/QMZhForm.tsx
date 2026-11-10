@@ -35,6 +35,7 @@ interface QMZhFormProps {
   initialTopic?: string;
   onGenerate: (formData: any) => Promise<void>;
   loading: boolean;
+  onLanguageChange?: (lang: LanguageType) => void;
 }
 
 export const QMZhForm: React.FC<QMZhFormProps> = ({
@@ -44,6 +45,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
   initialTopic = '',
   onGenerate,
   loading,
+  onLanguageChange,
 }) => {
   const isKk = language === 'kk';
 
@@ -59,43 +61,63 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
   const [studentsCount, setStudentsCount] = useState<number>(24);
   const [absentCount, setAbsentCount] = useState<number>(0);
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [sectionName, setSectionName] = useState<string>('Рационал сандарға амалдар қолдану');
-  const [lessonTopic, setLessonTopic] = useState<string>(initialTopic || (isKk ? 'Рационал сандарды көбейту' : 'Умножение рациональных чисел'));
+  const [sectionName, setSectionName] = useState<string>(
+    initialTopic ? 'Математика' : (isKk ? '6.2B Рационал сандарға амалдар қолдану' : '6.2B Действия над рациональными числами')
+  );
+  const [lessonTopic, setLessonTopic] = useState<string>(
+    initialTopic || (isKk ? 'Рационал сандарды көбейту' : 'Умножение рациональных чисел')
+  );
   const [learningObjectiveCode, setLearningObjectiveCode] = useState<string>('6.1.2.15');
   const [learningObjectiveText, setLearningObjectiveText] = useState<string>(
     isKk ? 'Рационал сандарды көбейту ережелерін қолданып есептер шығару' : 'Применять правила умножения рациональных чисел'
   );
+  const [lessonGoalsList, setLessonGoalsList] = useState<string[]>([
+    isKk ? '1. Оң және теріс сандарды көбейтудің таңбалар ережесін айтады.' : '1. Формулирует правило знаков при умножении чисел.',
+    isKk ? '2. Көбейтіндінің таңбасын табады және қатесіз есептейді.' : '2. Безошибочно вычисляет произведение рациональных чисел.',
+    isKk ? '3. Көбейту ережесін есептерді шығаруда қолданады.' : '3. Применяет правила умножения при решении задач.'
+  ]);
+  const [showCatalog, setShowCatalog] = useState(false);
   const [durationMinutes, setDurationMinutes] = useState<number>(45);
   const [lessonType, setLessonType] = useState<LessonType>('new');
-  const [taskCount, setTaskCount] = useState<number>(4);
+  const [taskCount, setTaskCount] = useState<number>(6);
 
   // Multi-selects
-  const [workForms, setWorkForms] = useState<WorkForm[]>(['individual', 'pair', 'guided']);
-  const [taskTypes, setTaskTypes] = useState<TaskType[]>(['tiered', 'logic', 'ai_analysis']);
+  const [workForms, setWorkForms] = useState<WorkForm[]>(['individual', 'pair', 'group', 'guided']);
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>(['tiered', 'logic', 'functional', 'ai_analysis']);
   const [assessmentMethods, setAssessmentMethods] = useState<AssessmentMethod[]>(['descriptor', 'self', 'peer']);
   const [selectedValues, setSelectedValues] = useState<AdalAzamatValue[]>(['diligence', 'justice', 'unity']);
 
-  // Available grade options based on subject
-  const gradeOptions = subject === 'math' 
-    ? [5, 6] 
-    : subject === 'algebra' 
-    ? [7, 8, 9, 10, 11] 
-    : subject === 'geometry' 
-    ? [7, 8, 9, 10, 11] 
-    : [10, 11];
-
-  // Auto-fill suggested curriculum objectives when subject/grade changes
-  useEffect(() => {
-    const matched = CURRICULUM_OBJECTIVES.filter(o => o.subject === subject && o.grade === grade);
-    if (matched.length > 0) {
-      const first = matched[0];
-      setSectionName(isKk ? first.sectionKk : first.sectionRu);
-      setLessonTopic(isKk ? first.topicKk : first.topicRu);
-      setLearningObjectiveCode(first.code);
-      setLearningObjectiveText(isKk ? first.textKk : first.textRu);
+  // Handle grade change across 5-9 range
+  const handleGradeSelect = (g: number) => {
+    setGrade(g);
+    if (g <= 6) {
+      setSubject('math');
+    } else {
+      if (subject !== 'geometry') {
+        setSubject('algebra');
+      }
     }
-  }, [subject, grade, isKk]);
+  };
 
+  // Auto-generate 3 SMART goals based on teacher's entered topic
+  const handleAutoGenerateGoals = () => {
+    const t = lessonTopic.trim() || (isKk ? 'Математика' : 'Математика');
+    if (isKk) {
+      setLessonGoalsList([
+        `1. «${t}» тақырыбы бойынша негізгі ұғымдар мен формулаларды тұжырымдайды.`,
+        `2. Есептерді шығаруда сәйкес алгоритмді қатесіз қолданады.`,
+        `3. Өз бетінше деңгейлік және өмірлік тапсырмаларды орындап, шешімін тексереді.`
+      ]);
+    } else {
+      setLessonGoalsList([
+        `1. Формулирует основные понятия, правила и формулы по теме «${t}».`,
+        `2. Безошибочно применяет соответствующий алгоритм при вычислениях.`,
+        `3. Самостоятельно выполняет разноуровневые и практические задания, обосновывает результат.`
+      ]);
+    }
+  };
+
+  // Quick preset loader from catalog
   const handleObjectiveSelect = (code: string) => {
     const obj = CURRICULUM_OBJECTIVES.find(o => o.code === code);
     if (obj) {
@@ -103,6 +125,19 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
       setLearningObjectiveText(isKk ? obj.textKk : obj.textRu);
       setLessonTopic(isKk ? obj.topicKk : obj.topicRu);
       setSectionName(isKk ? obj.sectionKk : obj.sectionRu);
+      if (isKk) {
+        setLessonGoalsList([
+          `1. ${obj.topicKk} тақырыбы бойынша ережелер мен қасиеттерді түсіндіреді.`,
+          `2. ${obj.code} мақсатына сәйкес алгоритмді есептерді шығаруда қолданады.`,
+          `3. Деңгейлік және өмірлік есептерді қатесіз орындайды.`
+        ]);
+      } else {
+        setLessonGoalsList([
+          `1. Объясняет правила и свойства по теме «${obj.topicRu}».`,
+          `2. Корректно применяет формулы согласно цели ${obj.code} при решении задач.`,
+          `3. Самостоятельно решает практические и дифференцированные задания.`
+        ]);
+      }
     }
   };
 
@@ -137,6 +172,8 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
       lessonTopic,
       learningObjectiveCode,
       learningObjectiveText,
+      lessonGoal: lessonGoalsList.join('\n'),
+      lessonGoalsList,
       durationMinutes,
       lessonType,
       taskCount,
@@ -147,21 +184,61 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
     });
   };
 
+  // Popular topic quick chips for the current grade
+  const popularGradeChips = grade === 5
+    ? (isKk ? ['Жай бөлшектерді салыстыру', 'Жай бөлшектерді қосу', 'Жай бөлшектерді көбейту', 'Пайыз'] : ['Сравнение дробей', 'Сложение дробей', 'Умножение дробей', 'Проценты'])
+    : grade === 6
+    ? (isKk ? ['Рационал сандарды көбейту', 'Рационал сандарды бөлу', 'Пропорция', 'Сызықтық теңдеулер'] : ['Умножение рациональных чисел', 'Деление рациональных чисел', 'Пропорция', 'Линейные уравнения'])
+    : grade === 7
+    ? (isKk ? ['Көпмүшені көбейткіштерге жіктеу', 'Екі өрнектің квадраттарының айырмасы', 'Сызықтық функция', 'Үшбұрыштар теңдігі'] : ['Разложение многочлена на множители', 'Разность квадратов', 'Линейная функция', 'Признаки равенства треугольников'])
+    : grade === 8
+    ? (isKk ? ['Квадрат теңдеулерді шешу', 'Виет теоремасы', 'Пифагор теоремасы', 'Параллелограммның қасиеттері'] : ['Квадратные уравнения', 'Теорема Виета', 'Теорема Пифагора', 'Свойства параллелограмма'])
+    : (isKk ? ['Арифметикалық прогрессия', 'Екі айнымалысы бар теңдеулер жүйесі', 'Векторларды есептерге қолдану', 'Синустар және косинустар теоремалары'] : ['Арифметическая прогрессия', 'Системы уравнений', 'Применение векторов', 'Теорема синусов и косинусов']);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-10 space-y-8">
-        {/* Form Title */}
-        <div className="border-b border-slate-100 pb-5">
-          <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
-            <BookOpen className="w-4 h-4" />
-            <span>№130 Бұйрық сәйкестігімен</span>
+        
+        {/* Form Title & Bilingual Switcher */}
+        <div className="border-b border-slate-100 pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">
+              <BookOpen className="w-4 h-4" />
+              <span>5–9 сыныптар • №130 Бұйрық нысаны</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+              {isKk ? 'ҚМЖ құрастыру конструкторы' : 'Конструктор КСП (5–9 классы)'}
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              {isKk 
+                ? 'Мұғалім КТЖ бойынша кез келген тақырып пен мақсатты өзі еркін жаза алады.' 
+                : 'Учитель может свободно ввести любую тему и цель урока из своего КТП.'}
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            {isKk ? 'ҚМЖ құрастыру конструкторы' : 'Конструктор Краткосрочного плана (КСП)'}
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            {isKk ? 'Төмендегі ресми өрістерді толтырыңыз немесе дайын стандарттан таңдаңыз.' : 'Заполните обязательные поля для составления официального КСП.'}
-          </p>
+
+          {/* Bilingual Switcher */}
+          {onLanguageChange && (
+            <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => onLanguageChange('kk')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  isKk ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🇰🇿 Қазақша
+              </button>
+              <button
+                type="button"
+                onClick={() => onLanguageChange('ru')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  !isKk ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🇷🇺 Русский
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -169,7 +246,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <School className="w-4 h-4 text-blue-600" />
-              <span>1. Ұйым және оқытушы мәліметтері</span>
+              <span>1. {isKk ? 'Ұйым және оқытушы мәліметтері' : 'Сведения об организации и педагоге'}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -189,66 +266,92 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Мұғалімнің аты-жөні *' : 'ФИО педагога *'}
+                  {isKk ? 'Педагогтің аты-жөні *' : 'ФИО педагога *'}
                 </label>
                 <input
                   type="text"
                   required
                   value={teacherName}
                   onChange={(e) => setTeacherName(e.target.value)}
-                  placeholder="Ахметова А. Б."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm outline-none transition-all"
+                  placeholder="Каюпова Орынгуль Жумагалиевна"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm outline-none transition-all font-medium"
                 />
               </div>
             </div>
           </div>
 
-          {/* 2. Subject, Grade, Date, Duration */}
+          {/* 2. Grades 5 to 9 & Subject Selection */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-600" />
-              <span>2. Пән, сынып және сабақ уақыты</span>
+              <span>2. {isKk ? 'Сынып (5–9) және пәнді таңдау' : 'Класс (5–9) и предмет'}</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Пән *' : 'Предмет *'}
-                </label>
-                <select
-                  value={subject}
-                  onChange={(e) => {
-                    const s = e.target.value as SubjectType;
-                    setSubject(s);
-                    if (s === 'math') setGrade(6);
-                    else if (s === 'algebra') setGrade(7);
-                    else if (s === 'geometry') setGrade(9);
-                    else if (s === 'analysis') setGrade(10);
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm bg-white outline-none"
-                >
-                  <option value="math">Математика (5–6)</option>
-                  <option value="algebra">Алгебра (7–9, 10–11)</option>
-                  <option value="geometry">Геометрия (7–11)</option>
-                  <option value="analysis">Алгебра және анализ (10–11)</option>
-                </select>
+            {/* Prominent Grade Selector (5, 6, 7, 8, 9) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">
+                {isKk ? 'Сыныпты таңдаңыз (5–9 сыныптар):' : 'Выберите класс (5–9 классы):'}
+              </label>
+              <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                {[5, 6, 7, 8, 9].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => handleGradeSelect(g)}
+                    className={`py-3 rounded-2xl text-center font-bold text-sm sm:text-base transition-all ${
+                      grade === g
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-600 ring-offset-2 scale-[1.02]'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <span>{g}-{isKk ? 'сынып' : 'кл'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Subject Indicator / Toggle for Grades 7-9 */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500">
+                  {isKk ? 'Таңдалған пән:' : 'Выбранный предмет:'}
+                </span>
+                <span className="px-3 py-1 rounded-xl bg-blue-100 text-blue-900 font-bold text-xs">
+                  {grade <= 6 
+                    ? (isKk ? '📘 Математика (5–6 сынып)' : '📘 Математика (5–6 класс)')
+                    : subject === 'geometry'
+                    ? (isKk ? '📐 Геометрия (7–9 сынып)' : '📐 Геометрия (7–9 класс)')
+                    : (isKk ? '✏️ Алгебра (7–9 сынып)' : '✏️ Алгебра (7–9 класс)')
+                  }
+                </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Сынып *' : 'Класс *'}
-                </label>
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(parseInt(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm bg-white outline-none"
-                >
-                  {gradeOptions.map(g => (
-                    <option key={g} value={g}>{g}-сынып</option>
-                  ))}
-                </select>
-              </div>
+              {/* Subject switcher for Grades 7, 8, 9 */}
+              {grade >= 7 && (
+                <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setSubject('algebra')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      subject === 'algebra' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {isKk ? 'Алгебра' : 'Алгебра'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSubject('geometry')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      subject === 'geometry' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {isKk ? 'Геометрия' : 'Геометрия'}
+                  </button>
+                </div>
+              )}
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   {isKk ? 'Сабақтың ұзақтығы' : 'Длительность урока'}
@@ -274,72 +377,99 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm bg-white outline-none"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Оқушылар саны (қатысушылар)' : 'Количество учащихся'}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={45}
-                  value={studentsCount}
-                  onChange={(e) => setStudentsCount(parseInt(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none"
-                />
-              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Қатыспағандар саны' : 'Отсутствующие'}
+                  {isKk ? 'Қатысушылар / Қатыспағандар' : 'Присутствуют / Отсутствуют'}
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={studentsCount}
-                  value={absentCount}
-                  onChange={(e) => setAbsentCount(parseInt(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={45}
+                    value={studentsCount}
+                    onChange={(e) => setStudentsCount(parseInt(e.target.value) || 1)}
+                    className="w-1/2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-center font-bold"
+                    title={isKk ? 'Қатысқандар саны' : 'Присутствующие'}
+                  />
+                  <span className="text-slate-400">/</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={studentsCount}
+                    value={absentCount}
+                    onChange={(e) => setAbsentCount(parseInt(e.target.value) || 0)}
+                    className="w-1/2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-center"
+                    title={isKk ? 'Қатыспағандар саны' : 'Отсутствующие'}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* 3. Section, Topic, Learning Objective */}
+          {/* 3. Teacher Manual Custom Topic & Learning Objective Entry */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Award className="w-4 h-4 text-purple-600" />
-              <span>3. Тақырып және оқу мақсаттары</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Award className="w-4 h-4 text-purple-600" />
+                <span>3. {isKk ? 'Тақырып пен оқу мақсаттарын еркін енгізу' : 'Свободный ввод темы и целей урока'}</span>
+              </h3>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                {isKk ? 'Қолмен жазуға дайын' : 'Ручной ввод доступен'}
+              </span>
+            </div>
 
-            {/* Quick preset selector for standard Kazakhstan curriculum */}
-            <div className="p-3.5 bg-blue-50/70 rounded-xl border border-blue-200/70 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
-                <span>{isKk ? '2026–2027 Бағдарламалық оқу мақсаттарынан таңдау:' : 'Выбрать из утвержденных целей:'}</span>
-                <span className="text-[11px] text-blue-600 font-mono">ҚР Үлгілік жоспары</span>
+            {/* Helper Notice for Teachers */}
+            <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/60 text-xs text-blue-900 leading-relaxed">
+              {isKk 
+                ? '💡 Мұғалім күнтізбелік-тақырыптық жоспарынан (КТЖ) кез келген тақырып пен мақсатты осы өрістерге тікелей жаза немесе көшіріп қоя алады. Сондай-ақ дайын каталогтан таңдауға да болады.' 
+                : '💡 Учитель может ввести любую тему и цель из календарно-тематического плана (КТП) вручную или выбрать из каталога утвержденных целей.'}
+            </div>
+
+            {/* Quick Topic Chips */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>{grade}-{isKk ? 'сыныптың танымал тақырыптары (1 рет шертіп таңдауға болады):' : 'Популярные темы класса:'}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {CURRICULUM_OBJECTIVES.filter(o => o.subject === subject && o.grade === grade).map(obj => (
+              <div className="flex flex-wrap gap-1.5">
+                {popularGradeChips.map((chip, cIdx) => (
                   <button
-                    key={obj.code}
+                    key={cIdx}
                     type="button"
-                    onClick={() => handleObjectiveSelect(obj.code)}
-                    className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all ${
-                      learningObjectiveCode === obj.code
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    onClick={() => {
+                      setLessonTopic(chip);
+                      handleAutoGenerateGoals();
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                      lessonTopic === chip
+                        ? 'bg-blue-600 text-white border-blue-600 font-bold'
                         : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
                     }`}
                   >
-                    <span className="font-bold">{obj.code}</span> — {isKk ? obj.topicKk : obj.topicRu}
+                    {chip}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+            {/* Main Lesson Topic Field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1.5">
+                {isKk ? 'Сабақтың тақырыбы (мұғалімнің өз тақырыбы) *' : 'Тема урока (введите вашу тему) *'}
+              </label>
+              <input
+                type="text"
+                required
+                value={lessonTopic}
+                onChange={(e) => setLessonTopic(e.target.value)}
+                placeholder={isKk ? 'Мысалы: Рационал сандарды көбейту немесе Квадрат теңдеулер...' : 'Например: Умножение рациональных чисел или Теорема Пифагора...'}
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-base font-bold text-slate-900 outline-none transition-all"
+              />
+            </div>
+
+            {/* Section Name & Objective Code */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   {isKk ? 'Бөлім (тарау) атауы *' : 'Раздел *'}
                 </label>
@@ -348,26 +478,12 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                   required
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none"
+                  placeholder={isKk ? 'Мысалы: Рационал сандарға амалдар қолдану' : 'Например: Действия над рациональными числами'}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Сабақтың тақырыбы *' : 'Тема урока *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={lessonTopic}
-                  onChange={(e) => setLessonTopic(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none font-semibold text-slate-900"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="sm:col-span-1">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   {isKk ? 'Оқу мақсаты коды *' : 'Код цели *'}
                 </label>
@@ -377,45 +493,129 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                   value={learningObjectiveCode}
                   onChange={(e) => setLearningObjectiveCode(e.target.value)}
                   placeholder="6.1.2.15"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono outline-none"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isKk ? 'Оқу бағдарламасына сәйкес оқыту мақсаты (толық мәтіні) *' : 'Текст цели обучения *'}
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={learningObjectiveText}
-                  onChange={(e) => setLearningObjectiveText(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm font-mono font-bold text-blue-700 outline-none"
                 />
               </div>
             </div>
 
+            {/* Full Learning Objective Text (KTZh) */}
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                {isKk ? 'Оқу бағдарламасына сәйкес оқыту мақсаты (толық мәтіні) *' : 'Текст цели обучения из КТП *'}
+              </label>
+              <textarea
+                rows={2}
+                required
+                value={learningObjectiveText}
+                onChange={(e) => setLearningObjectiveText(e.target.value)}
+                placeholder={isKk ? 'КТЖ-дағы оқу мақсатын осында жазыңыз немесе көшіріп қойыңыз...' : 'Введите или вставьте цель обучения из вашего КТП...'}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-sm outline-none leading-relaxed"
+              />
+            </div>
+
+            {/* 3 Lesson Goals (Numbered and editable) */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-900">
+                  {isKk ? 'Сабақтың мақсаты (3 нақты пункт):' : 'Цели урока (3 конкретных пункта):'}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateGoals}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{isKk ? 'Тақырыпқа сай 3 мақсатты автоматты құрастыру' : 'Сгенерировать 3 цели по теме'}</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {lessonGoalsList.map((goal, gIdx) => (
+                  <div key={gIdx} className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs shrink-0">
+                      {gIdx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={goal.replace(/^\d+\.\s*/, '')}
+                      onChange={(e) => {
+                        const copy = [...lessonGoalsList];
+                        copy[gIdx] = `${gIdx + 1}. ${e.target.value}`;
+                        setLessonGoalsList(copy);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs outline-none focus:border-blue-500 font-medium"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional Collapsible Curriculum Objectives Catalog */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCatalog(!showCatalog)}
+                className="text-xs font-bold text-slate-600 hover:text-blue-600 flex items-center gap-1.5 transition-colors"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${showCatalog ? 'rotate-180' : ''}`} />
+                <span>
+                  {showCatalog 
+                    ? (isKk ? 'Үлгілік оқу мақсаттары каталогын жасыру' : 'Скрыть каталог утвержденных целей')
+                    : (isKk ? `2026–2027 Бағдарламалық оқу мақсаттары каталогынан таңдау (${grade}-сынып) ▼` : `Выбрать из каталога утвержденных целей (${grade} класс) ▼`)}
+                </span>
+              </button>
+
+              {showCatalog && (
+                <div className="mt-3 p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200/70 space-y-2.5">
+                  <div className="text-xs font-semibold text-blue-900">
+                    {isKk ? 'Кез келген мақсатты басып, өрістерге 1 шертумен қоюға болады:' : 'Нажмите на цель, чтобы вставить ее в форму:'}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {CURRICULUM_OBJECTIVES.filter(o => o.subject === subject && o.grade === grade).map(obj => (
+                      <button
+                        key={obj.code}
+                        type="button"
+                        onClick={() => {
+                          handleObjectiveSelect(obj.code);
+                          setShowCatalog(false);
+                        }}
+                        className="text-left p-2.5 rounded-xl border border-blue-200 bg-white hover:border-blue-500 hover:shadow-xs transition-all text-xs space-y-1"
+                      >
+                        <div className="font-bold text-blue-800 flex items-center justify-between">
+                          <span className="font-mono">{obj.code}</span>
+                          <span className="text-[10px] text-slate-500">{obj.grade}-{isKk ? 'сынып' : 'кл'}</span>
+                        </div>
+                        <div className="font-semibold text-slate-900">{isKk ? obj.topicKk : obj.topicRu}</div>
+                        <div className="text-[11px] text-slate-600 line-clamp-2">{isKk ? obj.textKk : obj.textRu}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Lesson Type */}
+            <div className="pt-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 {isKk ? 'Сабақтың түрі *' : 'Тип урока *'}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { id: 'new', label: 'Жаңа тақырып' },
-                  { id: 'reinforce', label: 'Бекіту сабағы' },
-                  { id: 'revision', label: 'Қайталау' },
-                  { id: 'practical', label: 'Практикалық' },
-                  { id: 'research', label: 'Зерттеу сабағы' },
-                  { id: 'bjb', label: 'БЖБ сабағы' },
-                  { id: 'tjb', label: 'ТЖБ сабағы' },
+                  { id: 'new', label: isKk ? 'Жаңа тақырып' : 'Новый урок' },
+                  { id: 'reinforce', label: isKk ? 'Бекіту сабағы' : 'Закрепление' },
+                  { id: 'revision', label: isKk ? 'Қайталау' : 'Повторение' },
+                  { id: 'practical', label: isKk ? 'Практикалық' : 'Практический' },
+                  { id: 'research', label: isKk ? 'Зерттеу сабағы' : 'Исследование' },
+                  { id: 'bjb', label: isKk ? 'БЖБ сабағы' : 'Урок СОР' },
+                  { id: 'tjb', label: isKk ? 'ТЖБ сабағы' : 'Урок СОЧ' },
                 ].map(lt => (
                   <button
                     key={lt.id}
                     type="button"
                     onClick={() => setLessonType(lt.id as LessonType)}
-                    className={`py-2 px-3 rounded-xl border text-xs font-medium text-left flex items-center justify-between ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-medium text-left flex items-center justify-between transition-all ${
                       lessonType === lt.id
-                        ? 'border-blue-600 bg-blue-50 text-blue-800'
+                        ? 'border-blue-600 bg-blue-50 text-blue-800 font-bold'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >

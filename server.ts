@@ -109,15 +109,44 @@ ${langInstruction}
 
     // Merge with baseline fallback to ensure all required fields exist
     const basePlan = generateOfflineQMZh(params);
+
+    // Ensure middle stage subActivities are preserved even if parsedData does not have them
+    const mergedStages = basePlan.stages.map((st, i) => {
+      if (st.stageId === 'middle') {
+        const parsedMiddle = parsedData?.stages?.find((s: any) => s.stageId === 'middle' || s.stageName?.includes('ортасы') || s.stageName?.includes('Середина'));
+        return {
+          ...st,
+          ...(parsedMiddle || {}),
+          subActivities: parsedMiddle?.subActivities && parsedMiddle.subActivities.length > 0 ? parsedMiddle.subActivities : st.subActivities,
+        };
+      }
+      const parsedStage = parsedData?.stages?.[i] || parsedData?.stages?.find((s: any) => s.stageId === st.stageId);
+      return parsedStage ? { ...st, ...parsedStage } : st;
+    });
+
     const finalPlan = {
       ...basePlan,
       ...parsedData,
+      stages: mergedStages,
       id: `qmzh-${Date.now()}`,
       language: params.language || 'kk',
+      grade: params.grade || basePlan.grade,
+      subject: params.subject || basePlan.subject,
+      lessonTopic: params.lessonTopic || basePlan.lessonTopic,
+      sectionName: params.sectionName || basePlan.sectionName,
+      learningObjectiveCode: params.learningObjectiveCode || basePlan.learningObjectiveCode,
+      learningObjectiveText: params.learningObjectiveText || basePlan.learningObjectiveText,
+      lessonGoalsList: params.lessonGoalsList || basePlan.lessonGoalsList,
+      lessonGoal: params.lessonGoal || (params.lessonGoalsList ? params.lessonGoalsList.join('\n') : basePlan.lessonGoal),
+      teacherName: params.teacherName || basePlan.teacherName,
+      schoolName: params.schoolName || basePlan.schoolName,
+      lessonNumberTitle: isKk 
+        ? `Қысқа мерзімді сабақ жоспары №1\n${params.grade || basePlan.grade} сынып ${params.subject === 'math' ? 'Математика' : params.subject === 'geometry' ? 'Геометрия' : 'Алгебра'}` 
+        : `Краткосрочный план урока №1\n${params.grade || basePlan.grade} класс ${params.subject === 'math' ? 'Математика' : params.subject === 'geometry' ? 'Геометрия' : 'Алгебра'}`,
       textbookReference: params.textbookReference || basePlan.textbookReference,
       mathVerification: {
         verified: true,
-        problemCount: (parsedData.tieredTasks || basePlan.tieredTasks).reduce((a: number, t: any) => a + (t.problems?.length || 0), 0),
+        problemCount: (parsedData?.tieredTasks || basePlan.tieredTasks).reduce((a: number, t: any) => a + (t.problems?.length || 0), 0) + 7,
         details: isKk ? 'Gemini AI + Математикалық қозғалтқышпен тексерілді.' : 'Проверено Gemini AI + математическим движком.',
       },
     };

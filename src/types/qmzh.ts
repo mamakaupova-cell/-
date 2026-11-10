@@ -152,6 +152,7 @@ export interface QMZhDocument {
   additionalProblems?: MathProblem[];
   answerKeyAppendix: string;
   aiIntegrationNotes?: string;
+  textbookReference?: string;
   mathVerification: {
     verified: boolean;
     problemCount: number;
