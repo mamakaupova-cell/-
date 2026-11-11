@@ -152,12 +152,48 @@ export interface QMZhDocument {
   additionalProblems?: MathProblem[];
   answerKeyAppendix: string;
   aiIntegrationNotes?: string;
-  textbookReference?: string;
+  textbookReference?: TextbookReference | string;
   mathVerification: {
     verified: boolean;
     problemCount: number;
     details: string;
   };
+}
+
+export interface TextbookReference {
+  publisher: string;       // e.g. "Атамұра", "Мектеп", "Алматыкітап"
+  authors: string;         // e.g. "Т.А. Алдамұратова, Қ.С. Байшоланова"
+  textbookTitle: string;   // e.g. "Математика. 6-сынып"
+  editionYear?: string;    // e.g. "2024"
+  paragraph?: string;      // e.g. "§18. Рационал сандарды көбейту"
+  pageNumbers?: string;    // e.g. "72–75 б."
+  exercises?: string;      // e.g. "№557 (А деңгейі), №558 (В деңгейі), №562 (С деңгейі)"
+  selectedExerciseText?: string;
+}
+
+export interface TextbookCatalogItem {
+  id: string;
+  publisher: string;
+  publisherLogo?: string;
+  subject: SubjectType;
+  grade: number;
+  authorsKk: string;
+  authorsRu: string;
+  titleKk: string;
+  titleRu: string;
+  editionYear: string;
+  recommendedTopics?: {
+    topicCode?: string;
+    topicNameKk: string;
+    topicNameRu: string;
+    paragraph: string;
+    pages: string;
+    exercises: string;
+    sampleProblemKk?: string;
+    sampleProblemRu?: string;
+    sampleAnswerKk?: string;
+    sampleAnswerRu?: string;
+  }[];
 }
 
 export interface CombinedQMZhDocument {

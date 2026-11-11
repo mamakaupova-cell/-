@@ -26,6 +26,7 @@ import { QMZhDocument, TieredTask, MathProblem } from '../types/qmzh';
 import { MathView } from './MathView';
 import { GeometryCanvas } from './GeometryCanvas';
 import { exportQMZhToWord, exportStudentWorksheet } from '../utils/wordExporter';
+import { calculateGroupDivision } from '../utils/groupDivision';
 
 interface QMZhViewerProps {
   qmzh: QMZhDocument;
@@ -48,6 +49,7 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
 
   // Editable local state
   const [editedPlan, setEditedPlan] = useState<QMZhDocument>(qmzh);
+  const groupDiv = calculateGroupDivision(editedPlan.studentsCount || 24, isKk ? 'kk' : 'ru');
 
   // Sync if outer prop changes
   React.useEffect(() => {
@@ -129,6 +131,35 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
       }
       return <div key={lIdx}>{line}</div>;
     });
+  };
+
+  // Helper to render resources with interactive platform link
+  const renderResourceCell = (text: string) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return (
+      <div className="space-y-1">
+        {lines.map((line, lIdx) => {
+          if (line.includes('differen-git-main-oryngul-kayupova')) {
+            return (
+              <div key={lIdx} className="space-y-1">
+                <div>{line.replace('https://differen-git-main-oryngul-kayupova.vercel.app/', '').replace('https://differen-git-main-oryngul-kayupova.vercel.app', '')}</div>
+                <a
+                  href="https://differen-git-main-oryngul-kayupova.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors shadow-2xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Деңгейлік ЖИ платформасы ↗</span>
+                </a>
+              </div>
+            );
+          }
+          return <div key={lIdx}>{line}</div>;
+        })}
+      </div>
+    );
   };
 
   return (
@@ -291,9 +322,12 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                   {isKk ? 'Сынып:' : 'Класс:'} {editedPlan.grade}
                 </td>
                 <td className="p-2 text-slate-900">
-                  <div className="flex flex-wrap items-center justify-between gap-6">
-                    <span>{isKk ? 'Қатысқандар саны:' : 'Присутствуют:'} {editedPlan.studentsCount}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span>{isKk ? 'Қатысқандар саны:' : 'Присутствуют:'} <strong className="font-bold text-slate-900">{editedPlan.studentsCount}</strong></span>
                     <span>{isKk ? 'Қатыспағандар саны:' : 'Отсутствуют:'} {editedPlan.absentCount}</span>
+                    <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+                      {isKk ? groupDiv.summaryDistributionKk : groupDiv.summaryDistributionRu}
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -313,7 +347,7 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                   <span className="font-mono font-bold text-blue-700">{editedPlan.learningObjectiveCode}</span> — {editedPlan.learningObjectiveText}
                 </td>
               </tr>
-              <tr>
+              <tr className="border-b border-black">
                 <td className="p-2 font-bold border-r border-black bg-slate-50/60 text-slate-900">
                   {isKk ? 'Сабақтың мақсаты:' : 'Цели урока:'}
                 </td>
@@ -323,6 +357,40 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                     : editedPlan.lessonGoal}
                 </td>
               </tr>
+              {editedPlan.textbookReference && (
+                <tr>
+                  <td className="p-2 font-bold border-r border-black bg-slate-50/60 text-slate-900">
+                    {isKk ? 'Оқулық және баспасы:' : 'Учебник и издательство:'}
+                  </td>
+                  <td className="p-2 text-slate-900">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-blue-900">
+                        {typeof editedPlan.textbookReference === 'string'
+                          ? editedPlan.textbookReference
+                          : `${editedPlan.textbookReference.publisher || ''} ${editedPlan.textbookReference.textbookTitle ? `• ${editedPlan.textbookReference.textbookTitle}` : ''}`}
+                      </span>
+                      {typeof editedPlan.textbookReference !== 'string' && editedPlan.textbookReference.authors && (
+                        <span className="text-slate-600">({editedPlan.textbookReference.authors})</span>
+                      )}
+                      {typeof editedPlan.textbookReference !== 'string' && editedPlan.textbookReference.paragraph && (
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] font-mono font-semibold">
+                          {editedPlan.textbookReference.paragraph}
+                        </span>
+                      )}
+                      {typeof editedPlan.textbookReference !== 'string' && editedPlan.textbookReference.pageNumbers && (
+                        <span className="text-slate-600 text-xs">
+                          {editedPlan.textbookReference.pageNumbers}
+                        </span>
+                      )}
+                      {typeof editedPlan.textbookReference !== 'string' && editedPlan.textbookReference.exercises && (
+                        <span className="text-blue-800 font-bold text-xs bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          {isKk ? 'Жаттығулар:' : 'Задания:'} {editedPlan.textbookReference.exercises}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -387,30 +455,68 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                               {sub.title}:
                             </span>
                             {renderFormattedActionText(sub.teacherAction)}
+                            {sub.type === 'tiered' && (
+                              <div className="mt-2">
+                                <a
+                                  href="https://differen-git-main-oryngul-kayupova.vercel.app/"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[11px] transition-colors"
+                                >
+                                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                                  <span>differen-git-main-oryngul-kayupova.vercel.app ↗</span>
+                                </a>
+                              </div>
+                            )}
                           </td>
 
                           {/* 3. Student Action & Solutions */}
                           <td className="p-2.5 border-r border-black leading-relaxed space-y-2">
                             {renderFormattedActionText(sub.studentAction)}
+                            {sub.type === 'tiered' && (
+                              <div className="mt-1.5 p-2 rounded-lg bg-blue-50/80 border border-blue-200 text-[11px] font-sans flex items-center justify-between gap-2">
+                                <span className="font-semibold text-blue-900">
+                                  {isKk ? 'Оқушылар тапсырманы ЖИ платформасында орындайды' : 'Учащиеся выполняют задания на ИИ платформе'}
+                                </span>
+                                <a
+                                  href="https://differen-git-main-oryngul-kayupova.vercel.app/"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-bold text-blue-700 underline hover:text-blue-900 shrink-0"
+                                >
+                                  {isKk ? 'Өту ↗' : 'Перейти ↗'}
+                                </a>
+                              </div>
+                            )}
 
-                            {/* Special Interactive Widget for Group Game «Үш парта жарысы» */}
+                            {/* Special Interactive Widget for Group Game adapted to student count */}
                             {sub.type === 'group_game' && (
                               <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 font-sans shadow-xs space-y-2.5">
                                 <div className="flex items-center justify-between border-b border-blue-200 pb-1.5">
-                                  <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1">
-                                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                                    «Үш парта» интерактивті жарыс тақтасы
+                                  <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span>
+                                      {groupDiv.strategy === 'small_class_individual_pair'
+                                        ? (isKk ? `Шағын сыныптағы сараланған сайыс (${groupDiv.studentsCount} оқушы)` : `Парный блиц (${groupDiv.studentsCount} уч.)`)
+                                        : groupDiv.strategy === 'two_micro_groups'
+                                        ? (isKk ? `2 командалық блиц-сайыс (${groupDiv.studentsCount} оқушы: ${groupDiv.groupSizes[0]} + ${groupDiv.groupSizes[1]})` : `Соревнование 2 команд (${groupDiv.studentsCount} уч.)`)
+                                        : (isKk ? `«Үш парта» жарыс тақтасы (${groupDiv.studentsCount} оқушы: ${groupDiv.groupSizes.join(' + ')})` : `Игра «Три парты» (${groupDiv.studentsCount} уч.)`)}
+                                    </span>
                                   </span>
                                   <span className="text-[10px] font-mono bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">
                                     ⏱ 00:00
                                   </span>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                                  {/* Row 1 / Desk 1 */}
-                                  <div className="bg-white p-2 rounded-lg border border-red-200 shadow-2xs space-y-1">
+                                <div className={`grid grid-cols-1 ${groupDiv.strategy === 'three_rows_standard' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-2 text-xs`}>
+                                  {/* Team 1 / Row 1 / Pair 1 */}
+                                  <div className="bg-white p-2.5 rounded-lg border border-red-200 shadow-2xs space-y-1">
                                     <div className="flex items-center justify-between text-[11px] font-bold text-red-700">
-                                      <span>1-қатар (Қызыл)</span>
+                                      <span>
+                                        {groupDiv.strategy === 'small_class_individual_pair' 
+                                          ? (isKk ? '1-жұп / 1-оқушы' : '1-я пара / уч.') 
+                                          : (isKk ? `1-топ / қатар (${groupDiv.groupSizes[0]} оқушы)` : `1-я группа (${groupDiv.groupSizes[0]} уч.)`)}
+                                      </span>
                                       <span className="font-mono bg-red-100 px-1.5 py-0.2 rounded">{deskScores.desk1} б.</span>
                                     </div>
                                     <div className="font-mono text-[11px] text-slate-700 font-semibold">
@@ -428,10 +534,14 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Row 2 / Desk 2 */}
-                                  <div className="bg-white p-2 rounded-lg border border-blue-200 shadow-2xs space-y-1">
+                                  {/* Team 2 / Row 2 / Pair 2 */}
+                                  <div className="bg-white p-2.5 rounded-lg border border-blue-200 shadow-2xs space-y-1">
                                     <div className="flex items-center justify-between text-[11px] font-bold text-blue-700">
-                                      <span>2-қатар (Көк)</span>
+                                      <span>
+                                        {groupDiv.strategy === 'small_class_individual_pair' 
+                                          ? (isKk ? '2-жұп / 2-оқушы' : '2-я пара / уч.') 
+                                          : (isKk ? `2-топ / қатар (${groupDiv.groupSizes[1] || groupDiv.groupSizes[0]} оқушы)` : `2-я группа (${groupDiv.groupSizes[1] || groupDiv.groupSizes[0]} уч.)`)}
+                                      </span>
                                       <span className="font-mono bg-blue-100 px-1.5 py-0.2 rounded">{deskScores.desk2} б.</span>
                                     </div>
                                     <div className="font-mono text-[11px] text-slate-700 font-semibold">
@@ -449,26 +559,28 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Row 3 / Desk 3 */}
-                                  <div className="bg-white p-2 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
-                                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700">
-                                      <span>3-қатар (Жасыл)</span>
-                                      <span className="font-mono bg-emerald-100 px-1.5 py-0.2 rounded">{deskScores.desk3} б.</span>
+                                  {/* Team 3 / Row 3 (Only if standard class >= 9 students) */}
+                                  {groupDiv.strategy === 'three_rows_standard' && (
+                                    <div className="bg-white p-2.5 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700">
+                                        <span>3-қатар ({groupDiv.groupSizes[2]} оқушы)</span>
+                                        <span className="font-mono bg-emerald-100 px-1.5 py-0.2 rounded">{deskScores.desk3} б.</span>
+                                      </div>
+                                      <div className="font-mono text-[11px] text-slate-700 font-semibold">
+                                        (-16) · 7 = ?
+                                      </div>
+                                      <div className="flex items-center justify-between pt-1">
+                                        <span className="text-[10px] text-emerald-700 font-bold font-mono">Жауап: -112</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeskScores(prev => ({ ...prev, desk3: prev.desk3 + 1 }))}
+                                          className="text-[10px] px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold"
+                                        >
+                                          +1 балл
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="font-mono text-[11px] text-slate-700 font-semibold">
-                                      (-16) · 7 = ?
-                                    </div>
-                                    <div className="flex items-center justify-between pt-1">
-                                      <span className="text-[10px] text-emerald-700 font-bold font-mono">Жауап: -112</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeskScores(prev => ({ ...prev, desk3: prev.desk3 + 1 }))}
-                                        className="text-[10px] px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold"
-                                      >
-                                        +1 балл
-                                      </button>
-                                    </div>
-                                  </div>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -513,7 +625,7 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
 
                           {/* 5. Resources */}
                           <td className="p-2.5 whitespace-pre-line leading-relaxed text-slate-700">
-                            {sub.resources}
+                            {renderResourceCell(sub.resources)}
                           </td>
                         </tr>
                       ));
@@ -596,7 +708,7 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                               className="w-full p-2 border border-slate-300 rounded text-xs outline-none"
                             />
                           ) : (
-                            stage.resources
+                            renderResourceCell(stage.resources)
                           )}
                         </td>
                       </tr>
@@ -650,6 +762,35 @@ export const QMZhViewer: React.FC<QMZhViewerProps> = ({
                   {isKk ? 'А деңгейі (қолдау), В деңгейі (стандарт), С деңгейі (жоғары)' : 'Уровни А, В, С с пошаговыми дескрипторами'}
                 </p>
               </div>
+            </div>
+
+            {/* Direct AI Platform Integration Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    {isKk ? 'Деңгейлік тапсырмалар ЖИ платформасы' : 'ИИ платформа дифференцированных заданий'}
+                  </span>
+                  <span className="text-emerald-300 font-bold text-xs">● Онлайн</span>
+                </div>
+                <h4 className="text-base sm:text-lg font-bold text-white">
+                  {isKk ? 'Орынгул Каюпованың Деңгейлік ЖИ платформасы' : 'ИИ платформа дифференциации Орынгуль Каюповой'}
+                </h4>
+                <p className="text-xs text-blue-100 font-mono">
+                  https://differen-git-main-oryngul-kayupova.vercel.app/
+                </p>
+              </div>
+
+              <a
+                href="https://differen-git-main-oryngul-kayupova.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-xl bg-white text-blue-700 font-bold text-xs shadow-md hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shrink-0 self-start sm:self-auto hover:scale-105 active:scale-95"
+              >
+                <span>{isKk ? 'ЖИ платформаны ашу (А, В, С)' : 'Открыть ИИ платформу (А, В, С)'}</span>
+                <span>↗</span>
+              </a>
             </div>
 
             <div className="space-y-6">

@@ -70,6 +70,32 @@ export const TaskBankView: React.FC<TaskBankViewProps> = ({ language }) => {
             : 'Каталог выверенных задач с пошаговыми решениями, ответами, чертежами и готовыми критериями оценивания.'}
         </p>
 
+        {/* User AI Platform Link in Task Bank */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+              🤖
+            </span>
+            <div>
+              <div className="text-xs font-bold text-blue-900">
+                {isKk ? 'Деңгейлік тапсырмалардың ЖИ платформасы (А, В, С)' : 'ИИ платформа дифференцированных заданий (А, В, С)'}
+              </div>
+              <div className="text-[11px] text-blue-700 font-mono">
+                https://differen-git-main-oryngul-kayupova.vercel.app/
+              </div>
+            </div>
+          </div>
+          <a
+            href="https://differen-git-main-oryngul-kayupova.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+          >
+            <span>{isKk ? 'Платформаға өту' : 'Перейти на платформу'}</span>
+            <span>↗</span>
+          </a>
+        </div>
+
         {/* Filters bar */}
         <div className="pt-2 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">

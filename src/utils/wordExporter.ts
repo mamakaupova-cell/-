@@ -18,6 +18,7 @@ import {
   PageOrientation,
 } from 'docx';
 import { QMZhDocument, CombinedQMZhDocument } from '../types/qmzh';
+import { calculateGroupDivision } from './groupDivision';
 
 const FONT_FAMILY = 'Times New Roman';
 const PRIMARY_COLOR = '000000';
@@ -128,6 +129,7 @@ export async function exportQMZhToWord(qmzh: QMZhDocument): Promise<void> {
     : (isKk ? 'Алгебра және анализ бастамалары' : 'Алгебра и начала анализа');
 
   // 1. Boxed Header Table (Exact 7-row Kazakhstan Ministry template)
+  const groupDiv = calculateGroupDivision(qmzh.studentsCount || 24, isKk ? 'kk' : 'ru');
   const goalsText = (qmzh.lessonGoalsList && qmzh.lessonGoalsList.length > 0)
     ? qmzh.lessonGoalsList.join('\n')
     : qmzh.lessonGoal;
@@ -157,7 +159,7 @@ export async function exportQMZhToWord(qmzh: QMZhDocument): Promise<void> {
         children: [
           createBorderedCell(`${isKk ? 'Сынып:' : 'Класс:'} ${qmzh.grade}`, 28, true),
           createBorderedCell(
-            `${isKk ? 'Қатысқандар саны:' : 'Присутствуют:'} ${qmzh.studentsCount}      ${isKk ? 'Қатыспағандар саны:' : 'Отсутствуют:'} ${qmzh.absentCount}`,
+            `${isKk ? 'Қатысқандар саны:' : 'Присутствуют:'} ${qmzh.studentsCount}      ${isKk ? 'Қатыспағандар саны:' : 'Отсутствуют:'} ${qmzh.absentCount}\n[${isKk ? groupDiv.summaryDistributionKk : groupDiv.summaryDistributionRu}]`,
             72
           ),
         ],
@@ -184,6 +186,26 @@ export async function exportQMZhToWord(qmzh: QMZhDocument): Promise<void> {
           createBorderedCell(goalsText, 72),
         ],
       }),
+      ...(qmzh.textbookReference ? [
+        new TableRow({
+          children: [
+            createBorderedCell(isKk ? 'Оқулық және баспасы:' : 'Учебник и издательство:', 28, true),
+            createBorderedCell(
+              typeof qmzh.textbookReference === 'string'
+                ? qmzh.textbookReference
+                : [
+                    qmzh.textbookReference.publisher || '',
+                    qmzh.textbookReference.textbookTitle || '',
+                    qmzh.textbookReference.authors ? `(${qmzh.textbookReference.authors})` : '',
+                    qmzh.textbookReference.paragraph || '',
+                    qmzh.textbookReference.pageNumbers || '',
+                    qmzh.textbookReference.exercises ? `${isKk ? 'Жаттығулар:' : 'Задания:'} ${qmzh.textbookReference.exercises}` : '',
+                  ].filter(Boolean).join(' • '),
+              72
+            ),
+          ],
+        }),
+      ] : []),
     ],
   });
 

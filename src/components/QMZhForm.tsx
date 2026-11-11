@@ -14,7 +14,10 @@ import {
   Check, 
   School, 
   UserCheck,
-  ChevronDown
+  ChevronDown,
+  Bookmark,
+  BookCheck,
+  Library
 } from 'lucide-react';
 import { 
   SubjectType, 
@@ -24,9 +27,17 @@ import {
   TaskType, 
   AssessmentMethod, 
   AdalAzamatValue,
-  QMZhDocument
+  QMZhDocument,
+  TextbookCatalogItem,
+  TextbookReference
 } from '../types/qmzh';
 import { CURRICULUM_OBJECTIVES, ADAL_AZAMAT_VALUES_INFO } from '../data/curriculumData';
+import { 
+  OFFICIAL_PUBLISHERS, 
+  TEXTBOOKS_CATALOG, 
+  getTextbooksForGradeAndSubject 
+} from '../data/textbooksData';
+import { calculateGroupDivision } from '../utils/groupDivision';
 
 interface QMZhFormProps {
   language: LanguageType;
@@ -77,6 +88,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
     isKk ? '3. Көбейту ережесін есептерді шығаруда қолданады.' : '3. Применяет правила умножения при решении задач.'
   ]);
   const [showCatalog, setShowCatalog] = useState(false);
+  const groupDiv = calculateGroupDivision(studentsCount, language);
   const [durationMinutes, setDurationMinutes] = useState<number>(45);
   const [lessonType, setLessonType] = useState<LessonType>('new');
   const [taskCount, setTaskCount] = useState<number>(6);
@@ -87,16 +99,127 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
   const [assessmentMethods, setAssessmentMethods] = useState<AssessmentMethod[]>(['descriptor', 'self', 'peer']);
   const [selectedValues, setSelectedValues] = useState<AdalAzamatValue[]>(['diligence', 'justice', 'unity']);
 
+  // Official Textbook & Publisher states
+  const [selectedPublisher, setSelectedPublisher] = useState<string>('all');
+  const [selectedTextbookId, setSelectedTextbookId] = useState<string>('tb-atamura-6-math');
+  const [textbookPublisher, setTextbookPublisher] = useState<string>('«Атамұра»');
+  const [textbookTitle, setTextbookTitle] = useState<string>(
+    isKk ? 'Математика. 6-сынып. 1, 2-бөлім' : 'Математика. 6 класс. Части 1, 2'
+  );
+  const [textbookAuthors, setTextbookAuthors] = useState<string>(
+    'Т.А. Алдамұратова, Т.С. Байшоланов, Е.С. Байшоланов'
+  );
+  const [textbookEditionYear, setTextbookEditionYear] = useState<string>('2024 (жаңартылған басылым)');
+  const [textbookParagraph, setTextbookParagraph] = useState<string>(
+    isKk ? '§18. Рационал сандарды көбейту. Таңбалар ережесі' : '§18. Умножение рациональных чисел. Правило знаков'
+  );
+  const [textbookPages, setTextbookPages] = useState<string>('72–76 б.');
+  const [textbookExercises, setTextbookExercises] = useState<string>(
+    isKk ? '№557 (А деңгейі), №558 (В деңгейі), №562 (С деңгейі)' : '№557 (уровень А), №558 (уровень В), №562 (уровень С)'
+  );
+  const [selectedExerciseText, setSelectedExerciseText] = useState<string>(
+    isKk ? '№557. Есепте: 1) (-3) · 7; 2) (-2.5) · (-4); 3) (-3/5) · (10/9).' : '№557. Вычислите: 1) (-3) · 7; 2) (-2.5) · (-4); 3) (-3/5) · (10/9).'
+  );
+  const [textbookNotification, setTextbookNotification] = useState<string | null>(null);
+
+  // Sync textbook info when grade or subject changes
+  const applyTextbookDefaults = (g: number, s: SubjectType) => {
+    const list = getTextbooksForGradeAndSubject(g, s);
+    if (list.length > 0) {
+      const tb = list[0];
+      setSelectedTextbookId(tb.id);
+      setTextbookPublisher(tb.publisher);
+      setTextbookTitle(isKk ? tb.titleKk : tb.titleRu);
+      setTextbookAuthors(isKk ? tb.authorsKk : tb.authorsRu);
+      setTextbookEditionYear(tb.editionYear);
+      if (tb.recommendedTopics && tb.recommendedTopics.length > 0) {
+        const top = tb.recommendedTopics[0];
+        setTextbookParagraph(top.paragraph);
+        setTextbookPages(top.pages);
+        setTextbookExercises(top.exercises);
+        setSelectedExerciseText(isKk ? top.sampleProblemKk || '' : top.sampleProblemRu || '');
+      }
+    }
+  };
+
   // Handle grade change across 5-9 range
   const handleGradeSelect = (g: number) => {
     setGrade(g);
+    let newSubject: SubjectType = subject;
     if (g <= 6) {
+      newSubject = 'math';
       setSubject('math');
     } else {
       if (subject !== 'geometry') {
+        newSubject = 'algebra';
         setSubject('algebra');
       }
     }
+    applyTextbookDefaults(g, newSubject);
+  };
+
+  const handleSubjectChange = (newSubj: SubjectType) => {
+    setSubject(newSubj);
+    applyTextbookDefaults(grade, newSubj);
+  };
+
+  // When teacher clicks a textbook card
+  const handleSelectTextbookCard = (tb: TextbookCatalogItem) => {
+    setSelectedTextbookId(tb.id);
+    setTextbookPublisher(tb.publisher);
+    setTextbookTitle(isKk ? tb.titleKk : tb.titleRu);
+    setTextbookAuthors(isKk ? tb.authorsKk : tb.authorsRu);
+    setTextbookEditionYear(tb.editionYear);
+    if (tb.recommendedTopics && tb.recommendedTopics.length > 0) {
+      const top = tb.recommendedTopics[0];
+      setTextbookParagraph(top.paragraph);
+      setTextbookPages(top.pages);
+      setTextbookExercises(top.exercises);
+      setSelectedExerciseText(isKk ? top.sampleProblemKk || '' : top.sampleProblemRu || '');
+    }
+    setTextbookNotification(isKk ? `«${tb.publisher}» оқулығы таңдалды` : `Выбран учебник «${tb.publisher}»`);
+    setTimeout(() => setTextbookNotification(null), 3000);
+  };
+
+  // When teacher clicks a specific topic inside a textbook
+  const handleSelectTextbookTopic = (tb: TextbookCatalogItem, top: any) => {
+    setSelectedTextbookId(tb.id);
+    setTextbookPublisher(tb.publisher);
+    setTextbookTitle(isKk ? tb.titleKk : tb.titleRu);
+    setTextbookAuthors(isKk ? tb.authorsKk : tb.authorsRu);
+    setTextbookEditionYear(tb.editionYear);
+    setTextbookParagraph(top.paragraph);
+    setTextbookPages(top.pages);
+    setTextbookExercises(top.exercises);
+    setSelectedExerciseText(isKk ? top.sampleProblemKk || '' : top.sampleProblemRu || '');
+
+    // Synchronize to Lesson Topic & Objective fields
+    const topicName = isKk ? top.topicNameKk : top.topicNameRu;
+    setLessonTopic(topicName);
+    if (top.topicCode) {
+      setLearningObjectiveCode(top.topicCode);
+      const curr = CURRICULUM_OBJECTIVES.find(o => o.code === top.topicCode);
+      if (curr) {
+        setLearningObjectiveText(isKk ? curr.textKk : curr.textRu);
+        setSectionName(isKk ? curr.sectionKk : curr.sectionRu);
+      }
+    }
+    if (isKk) {
+      setLessonGoalsList([
+        `1. ${topicName} тақырыбы бойынша ережелер мен алгоритмдерді тұжырымдайды.`,
+        `2. Оқулықтағы ${top.exercises.split(',')[0] || 'тапсырмаларды'} қатесіз орындайды.`,
+        `3. Тақырыпқа қатысты практикалық және өмірлік есептерді шешеді.`
+      ]);
+    } else {
+      setLessonGoalsList([
+        `1. Формулирует правила и алгоритмы по теме «${topicName}».`,
+        `2. Безошибочно выполняет задания из учебника (${top.exercises.split(',')[0] || ''}).`,
+        `3. Решает практические и жизненные задачи по данной теме.`
+      ]);
+    }
+
+    setTextbookNotification(isKk ? `«${tb.publisher}» тапсырмалары ҚМЖ-ға енгізілді` : `Задания «${tb.publisher}» применены к КСП`);
+    setTimeout(() => setTextbookNotification(null), 3500);
   };
 
   // Auto-generate 3 SMART goals based on teacher's entered topic
@@ -181,6 +304,16 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
       taskTypes,
       assessmentMethods,
       adalAzamatValues: selectedValues,
+      textbookReference: {
+        publisher: textbookPublisher,
+        authors: textbookAuthors,
+        textbookTitle: textbookTitle,
+        editionYear: textbookEditionYear,
+        paragraph: textbookParagraph,
+        pageNumbers: textbookPages,
+        exercises: textbookExercises,
+        selectedExerciseText: selectedExerciseText,
+      },
     });
   };
 
@@ -331,7 +464,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                 <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200">
                   <button
                     type="button"
-                    onClick={() => setSubject('algebra')}
+                    onClick={() => handleSubjectChange('algebra')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       subject === 'algebra' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -340,7 +473,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSubject('geometry')}
+                    onClick={() => handleSubjectChange('geometry')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       subject === 'geometry' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -404,15 +537,328 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Group Division Feasibility & Pedagogical Adaptation Preview */}
+              <div className="sm:col-span-2 pt-1">
+                <div className={`p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all shadow-2xs ${
+                  groupDiv.badgeStatus === 'small'
+                    ? 'bg-amber-50/90 border-amber-300 text-amber-900'
+                    : groupDiv.badgeStatus === 'moderate'
+                    ? 'bg-blue-50/90 border-blue-300 text-blue-900'
+                    : 'bg-emerald-50/90 border-emerald-300 text-emerald-900'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <span className="font-extrabold flex items-center gap-1.5 text-xs">
+                      <Users className="w-4 h-4 shrink-0 text-current" />
+                      <span>{isKk ? groupDiv.badgeTitleKk : groupDiv.badgeTitleRu}</span>
+                    </span>
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-white/90 border border-current/20 shadow-2xs self-start sm:self-auto">
+                      {isKk ? groupDiv.summaryDistributionKk : groupDiv.summaryDistributionRu}
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] leading-relaxed opacity-95">
+                    {isKk ? groupDiv.explanationKk : groupDiv.explanationRu}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* 3. Teacher Manual Custom Topic & Learning Objective Entry */}
+          {/* 3. Official Textbook Publishers & Tasks Selection (Атамұра, Мектеп, Алматыкітап, т.б.) */}
+          <div className="space-y-5 pt-4 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Bookmark className="w-4 h-4 text-blue-600" />
+                  <span>3. {isKk ? 'ҚР Оқулық баспалары және оқулық тапсырмалары' : 'Издательства учебников РК и задания'}</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {isKk 
+                    ? 'Мектебіңізде оқытылатын баспаны таңдаңыз («Атамұра», «Мектеп», «Алматыкітап», т.б.). Оқулықтың параграфы, беті және нақты есептері (№) ҚМЖ-ға тікелей енеді.' 
+                    : 'Выберите издательство учебника вашей школы («Атамұра», «Мектеп», «Алматыкітап» и др.). Номера упражнений и параграф включаются в КСП.'}
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 self-start sm:self-auto flex items-center gap-1">
+                <BookCheck className="w-3.5 h-3.5 text-blue-600" />
+                <span>{isKk ? 'ҚР БҒМ бекіткен баспалар' : 'Утвержденные издательства РК'}</span>
+              </span>
+            </div>
+
+            {/* Notification alert */}
+            {textbookNotification && (
+              <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-xs font-bold flex items-center justify-between animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>
+                  <span>{textbookNotification}</span>
+                </div>
+                <span className="text-[11px] text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-200">
+                  {isKk ? 'ҚМЖ-ға бекітілді' : 'Включено в план'}
+                </span>
+              </div>
+            )}
+
+            {/* Publisher Filter Buttons */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                {isKk ? 'Оқитын баспаны таңдаңыз:' : 'Выберите издательство учебника:'}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPublisher('all')}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold border transition-all ${
+                    selectedPublisher === 'all'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {isKk ? 'Барлық баспалар' : 'Все издательства'}
+                </button>
+                {OFFICIAL_PUBLISHERS.map((pub) => {
+                  const isSel = selectedPublisher === pub.nameKk || selectedPublisher === pub.id;
+                  return (
+                    <button
+                      key={pub.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPublisher(pub.nameKk);
+                        setTextbookPublisher(pub.nameKk);
+                        const found = getTextbooksForGradeAndSubject(grade, subject, pub.nameKk);
+                        if (found.length > 0) {
+                          handleSelectTextbookCard(found[0]);
+                        }
+                      }}
+                      className={`text-xs px-3 py-1.5 rounded-xl font-bold border transition-all flex items-center gap-1.5 ${
+                        isSel
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <span>{pub.nameKk}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Available Textbooks List for this grade/subject */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span>
+                  {grade}-{isKk ? 'сыныпқа арналған бекітілген оқулықтар' : 'класс: утвержденные учебники'}:
+                </span>
+                <span className="text-slate-400 font-normal text-[11px]">
+                  {getTextbooksForGradeAndSubject(grade, subject, selectedPublisher).length} {isKk ? 'оқулық табылды' : 'найдено'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {getTextbooksForGradeAndSubject(grade, subject, selectedPublisher).map((tb) => {
+                  const isCurrent = selectedTextbookId === tb.id;
+                  return (
+                    <div
+                      key={tb.id}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isCurrent
+                          ? 'border-blue-600 bg-blue-50/40 shadow-xs ring-1 ring-blue-500/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[11px] font-bold">
+                              {tb.publisher}
+                            </span>
+                            <span className="text-xs font-extrabold text-slate-900">
+                              {isKk ? tb.titleKk : tb.titleRu}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              ({tb.editionYear})
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 font-medium">
+                            <span className="font-semibold text-slate-700">{isKk ? 'Авторлары:' : 'Авторы:'}</span> {isKk ? tb.authorsKk : tb.authorsRu}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSelectTextbookCard(tb)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                            isCurrent
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {isCurrent ? (isKk ? '✓ Таңдалған оқулық' : '✓ Выбран') : (isKk ? 'Осы оқулықты таңдау' : 'Выбрать учебник')}
+                        </button>
+                      </div>
+
+                      {/* Recommended topics and exercises inside this textbook */}
+                      {tb.recommendedTopics && tb.recommendedTopics.length > 0 && (
+                        <div className="pt-3 space-y-2">
+                          <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                            {isKk ? 'Оқулықтағы тақырыптар мен жаттығулар (1 шертумен ҚМЖ-ға енгізу):' : 'Темы и упражнения учебника (нажмите для вставки):'}
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {tb.recommendedTopics.map((top, tIdx) => {
+                              const isTopicSelected = textbookParagraph === top.paragraph;
+                              return (
+                                <button
+                                  key={tIdx}
+                                  type="button"
+                                  onClick={() => handleSelectTextbookTopic(tb, top)}
+                                  className={`text-left p-3 rounded-xl border text-xs space-y-1.5 transition-all ${
+                                    isTopicSelected
+                                      ? 'border-blue-600 bg-white ring-2 ring-blue-500/20 shadow-xs'
+                                      : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-blue-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between font-bold">
+                                    <span className="text-blue-700 font-mono">{top.paragraph}</span>
+                                    <span className="text-slate-500 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">
+                                      {top.pages}
+                                    </span>
+                                  </div>
+                                  <div className="font-semibold text-slate-900 leading-snug">
+                                    {isKk ? top.topicNameKk : top.topicNameRu}
+                                  </div>
+                                  <div className="text-[11px] text-indigo-700 font-medium">
+                                    <span className="font-bold text-slate-700">{isKk ? 'Жаттығулар:' : 'Задания:'}</span> {top.exercises}
+                                  </div>
+                                  {top.sampleProblemKk && (
+                                    <div className="text-[10px] text-slate-500 italic border-t border-slate-100 pt-1 line-clamp-1">
+                                      {isKk ? top.sampleProblemKk : top.sampleProblemRu}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Editable Textbook Reference Details (Synchronized with QMZh) */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Library className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{isKk ? 'ҚМЖ-ға енгізілетін оқулық деректері (мұғалім өзгерте алады):' : 'Данные учебника для включения в КСП (можно редактировать):'}</span>
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {isKk ? '№130 нысан бойынша' : 'По форме приказа №130'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Баспасы' : 'Издательство'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookPublisher}
+                    onChange={(e) => setTextbookPublisher(e.target.value)}
+                    placeholder="«Атамұра»"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white font-bold text-blue-900 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Оқулық атауы' : 'Название учебника'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookTitle}
+                    onChange={(e) => setTextbookTitle(e.target.value)}
+                    placeholder="Математика. 6-сынып"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Авторлары' : 'Авторы'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookAuthors}
+                    onChange={(e) => setTextbookAuthors(e.target.value)}
+                    placeholder="Т.А. Алдамұратова"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Параграф / Тақырып' : 'Параграф / Тема'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookParagraph}
+                    onChange={(e) => setTextbookParagraph(e.target.value)}
+                    placeholder="§18. Рационал сандарды көбейту"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Беттері' : 'Страницы'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookPages}
+                    onChange={(e) => setTextbookPages(e.target.value)}
+                    placeholder="72–76 б."
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    {isKk ? 'Оқулықтан жаттығулар (№)' : 'Номера упражнений (№)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={textbookExercises}
+                    onChange={(e) => setTextbookExercises(e.target.value)}
+                    placeholder="№557 (А), №558 (В), №562 (С)"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white font-bold text-indigo-700 outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {isKk ? 'Таңдалған оқулық есебінің шарты (ҚМЖ кестесінде ашылып жазылады):' : 'Условие задачи из учебника (будет детально раскрыто в таблице):'}
+                </label>
+                <input
+                  type="text"
+                  value={selectedExerciseText}
+                  onChange={(e) => setSelectedExerciseText(e.target.value)}
+                  placeholder="№557. Есепте: 1) (-3) · 7; 2) (-2.5) · (-4)..."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Teacher Manual Custom Topic & Learning Objective Entry */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Award className="w-4 h-4 text-purple-600" />
-                <span>3. {isKk ? 'Тақырып пен оқу мақсаттарын еркін енгізу' : 'Свободный ввод темы и целей урока'}</span>
+                <span>4. {isKk ? 'Тақырып пен оқу мақсаттарын еркін енгізу' : 'Свободный ввод темы и целей урока'}</span>
               </h3>
               <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                 {isKk ? 'Қолмен жазуға дайын' : 'Ручной ввод доступен'}
@@ -627,11 +1073,11 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
             </div>
           </div>
 
-          {/* 4. Pedagogical Forms & Task Types */}
+          {/* 5. Pedagogical Forms & Task Types */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Users className="w-4 h-4 text-emerald-600" />
-              <span>4. Жұмыс формалары мен тапсырма түрлері</span>
+              <span>5. {isKk ? 'Жұмыс формалары мен тапсырма түрлері' : 'Формы работы и виды заданий'}</span>
             </h3>
 
             <div>
@@ -667,7 +1113,7 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
-                  { id: 'tiered', label: 'Деңгейлік тапсырма (А, В, С)' },
+                  { id: 'tiered', label: isKk ? 'Деңгейлік тапсырма (ЖИ платформа differen-git...)' : 'Дифференцированные (ИИ платформа differen-git...)' },
                   { id: 'logic', label: 'Логикалық есеп' },
                   { id: 'word_problem', label: 'Мәтіндік есеп' },
                   { id: 'real_world', label: 'Өмірмен байланысты есеп' },
@@ -717,12 +1163,12 @@ export const QMZhForm: React.FC<QMZhFormProps> = ({
             </div>
           </div>
 
-          {/* 5. «Адал азамат» Values */}
+          {/* 6. «Адал азамат» Values */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>5. «Адал азамат» тәрбие бағдарламасының құндылықтары</span>
+                <span>6. «Адал азамат» тәрбие бағдарламасының құндылықтары</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 {isKk ? 'Сабақ мазмұны мен тапсырмаларына кіріктірілетін негізгі құндылықтар:' : 'Ценности, интегрируемые в содержание уроков:'}
