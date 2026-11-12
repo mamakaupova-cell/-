@@ -169,12 +169,98 @@ ${langInstruction}
 });
 
 /**
- * Endpoint to generate a combined class QMZh
+ * Endpoint to generate a combined class QMZh (Малокомплектные / біріктірілген сыныптар)
  */
 app.post('/api/generate-combined', async (req: Request, res: Response) => {
   const params = req.body;
-  const plan = generateOfflineCombinedQMZh(params);
-  return res.json({ success: true, combinedQMZh: plan });
+  const isKk = params.language !== 'ru';
+
+  if (!ai || !apiKey) {
+    const offlinePlan = generateOfflineCombinedQMZh(params);
+    return res.json({ success: true, combinedQMZh: offlinePlan, source: 'offline-engine' });
+  }
+
+  try {
+    const c1 = params.class1 || {};
+    const c2 = params.class2 || {};
+    const grade1 = c1.grade || 5;
+    const grade2 = c2.grade || 6;
+    const topic1 = c1.topic || (isKk ? 'Жай бөлшектерді салыстыру' : 'Сравнение обыкновенных дробей');
+    const topic2 = c2.topic || (isKk ? 'Рационал сандарды көбейту' : 'Умножение рациональных чисел');
+    const count1 = c1.studentsCount || 3;
+    const count2 = c2.studentsCount || 4;
+
+    const prompt = `Сіз — Қазақстан Республикасының шағын жинақталған мектептеріне (ШЖМ) арналған біріктірілген/комплект сыныптар әдістемесін жетік білетін математика/алгебра/геометрия әдіскерісіз.
+ҚР Оқу-ағарту министрлігінің №130 бұйрығына сәйкес бір оқу кабинетінде 45 минуттық синхрондалған Біріктірілген ҚМЖ жасаңыз.
+
+Сыныптар параметрлері:
+- 1-сынып (Блок А): ${grade1}-сынып, Пән: ${c1.subject || 'Математика'}, Тақырып: «${topic1}», Оқушы саны: ${count1}, Мақсат коды: ${c1.objectiveCode || ''}
+- 2-сынып (Блок Б): ${grade2}-сынып, Пән: ${c2.subject || 'Математика'}, Тақырып: «${topic2}», Оқушы саны: ${count2}, Мақсат коды: ${c2.objectiveCode || ''}
+- Оқыту тілі: ${isKk ? 'Қазақ тілі' : 'Русский язык'}
+- Мұғалім: ${params.teacherName || 'Каюпова Орынгуль Жумагалиевна'}
+- Мектеп: ${params.schoolName || 'Шағын жинақты негізгі орта мектеп'}
+
+СИНХРОНДАУ КЕСТЕСІНІҢ ҚАТАҢ ҚҰРЫЛЫМЫ (45 минут):
+1. Ұйымдастыру кезеңі (5 мин) — Фронтальды жұмыс, екі сыныпқа ортақ жағымды ахуал, 2-сыныпқа нұсқаулық карточка беру, 1-сыныпқа зейін аудару.
+2. 1-блок: Түсіндіру + Өздік жұмыс (15 мин) — Мұғалім ${grade1}-сыныпқа ТІКЕЛЕЙ ТҮСІНДІРУ жүргізеді, үлгі есепті талдайды. Ал ${grade2}-сынып нұсқаулық бойынша ӨЗ БЕТІНШЕ оқулықпен немесе «https://differen-git-main-oryngul-kayupova.vercel.app/» ЖИ платформасымен жұмыс істейді.
+3. 2-блок: Рөлдерді ауыстыру / Ротация (15 мин) — Рөлдер ауысады! Мұғалім ${grade2}-сыныпқа ауысып ТІКЕЛЕЙ ТАЛДАУ жасайды (күрделі есепті талдайды). Ал ${grade1}-сынып жаңа тақырыпты бекітуге ӨЗДІК/ЖҰПТЫҚ деңгейлік тапсырмаларды орындайды.
+4. Қорытынды кезең (10 мин) — Біріккен қорытындылау, рефлексия, 10 баллдық бағалау және әр сыныпқа жеке сараланған үй тапсырмасы.
+
+МАҢЫЗДЫ ТАЛАП:
+- Оқушылардың әрекетінде барлық математикалық есептер мен мысалдардың шешу жолдары 100% АШЫҚ, НАҚТЫ САНДАРМЕН, АРАЛЫҚ АМАЛДАРЫМЕН ЖӘНЕ ЖАУАБЫМЕН жазылсын.
+- Нәтижені ТЕК JSON форматында қайтар.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const rawText = response.text || '';
+    let parsedData: any = null;
+    try {
+      parsedData = JSON.parse(rawText);
+    } catch {
+      const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedData = JSON.parse(cleaned);
+    }
+
+    const basePlan = generateOfflineCombinedQMZh(params);
+
+    const mergedStages = basePlan.stages.map((st, i) => {
+      const aiStage = parsedData?.stages?.[i] || parsedData?.stages?.find((s: any) => s.stageName?.includes(st.stageName) || s.timeMinutes === st.timeMinutes);
+      return aiStage ? { ...st, ...aiStage } : st;
+    });
+
+    const finalCombined = {
+      ...basePlan,
+      ...parsedData,
+      stages: mergedStages,
+      id: `comb-${Date.now()}`,
+      language: params.language || 'kk',
+      teacherName: params.teacherName || basePlan.teacherName,
+      schoolName: params.schoolName || basePlan.schoolName,
+      date: params.date || basePlan.date,
+      class1: {
+        ...basePlan.class1,
+        ...(parsedData?.class1 || {}),
+        tasks: basePlan.class1.tasks,
+      },
+      class2: {
+        ...basePlan.class2,
+        ...(parsedData?.class2 || {}),
+        tasks: basePlan.class2.tasks,
+      },
+    };
+
+    return res.json({ success: true, combinedQMZh: finalCombined, source: 'gemini-ai' });
+  } catch (err: any) {
+    console.warn('Gemini combined generation fallback:', err?.message);
+    const offlinePlan = generateOfflineCombinedQMZh(params);
+    return res.json({ success: true, combinedQMZh: offlinePlan, source: 'offline-fallback' });
+  }
 });
 
 /**

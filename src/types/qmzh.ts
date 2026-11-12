@@ -162,7 +162,7 @@ export interface QMZhDocument {
 
 export interface TextbookReference {
   publisher: string;       // e.g. "Атамұра", "Мектеп", "Алматыкітап"
-  authors: string;         // e.g. "Т.А. Алдамұратова, Қ.С. Байшоланова"
+  authors?: string;        // e.g. "Т.А. Алдамұратова, Қ.С. Байшоланова"
   textbookTitle: string;   // e.g. "Математика. 6-сынып"
   editionYear?: string;    // e.g. "2024"
   paragraph?: string;      // e.g. "§18. Рационал сандарды көбейту"
@@ -196,6 +196,18 @@ export interface TextbookCatalogItem {
   }[];
 }
 
+export interface CombinedStage {
+  stageName: string;
+  timeMinutes: number;
+  coordinationPrinciple: string;
+  teacherActionCombined: string;
+  class1StudentAction: string;
+  class1Assessment: string;
+  class2StudentAction: string;
+  class2Assessment: string;
+  resources: string;
+}
+
 export interface CombinedQMZhDocument {
   id: string;
   createdAt: string;
@@ -205,36 +217,37 @@ export interface CombinedQMZhDocument {
   date: string;
   durationMinutes: number;
   adalAzamatValues: AdalAzamatValue[];
+  sectionName?: string;
   class1: {
     grade: number;
     studentsCount: number;
+    absentCount?: number;
     subject: SubjectType;
     topic: string;
+    sectionName?: string;
     objectiveCode: string;
-    objectiveText: string;
-    lessonGoal: string;
+    objectiveText?: string;
+    lessonGoal?: string;
+    lessonGoalsList?: string[];
+    textbookReference?: TextbookReference | string;
     tasks: TieredTask[];
   };
   class2: {
     grade: number;
     studentsCount: number;
+    absentCount?: number;
     subject: SubjectType;
     topic: string;
+    sectionName?: string;
     objectiveCode: string;
-    objectiveText: string;
-    lessonGoal: string;
+    objectiveText?: string;
+    lessonGoal?: string;
+    lessonGoalsList?: string[];
+    textbookReference?: TextbookReference | string;
     tasks: TieredTask[];
   };
-  stages: {
-    stageName: string;
-    timeMinutes: number;
-    coordinationPrinciple: string;
-    teacherActionCombined: string;
-    class1StudentAction: string;
-    class1Assessment: string;
-    class2StudentAction: string;
-    class2Assessment: string;
-    resources: string;
-  }[];
+  stages: CombinedStage[];
   answerKeysCombined: string;
 }
+
+

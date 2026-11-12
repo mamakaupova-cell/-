@@ -456,19 +456,93 @@ export async function exportStudentWorksheet(qmzh: QMZhDocument): Promise<void> 
 }
 
 /**
- * Generates and downloads Combined Class QMZh Word document
+ * Generates and downloads Combined Class QMZh Word document (ҚР Оқу-ағарту министрлігінің №130 бұйрығы)
  */
 export async function exportCombinedQMZhToWord(cq: CombinedQMZhDocument): Promise<void> {
   const isKk = cq.language === 'kk';
 
+  // 1. Boxed Header Table (Order #130 for Combined Multi-Grade Classes)
+  const headerTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Бөлімдері:' : 'Разделы:', 28, true),
+          createBorderedCell(
+            `1-сынып (${cq.class1.grade}): ${cq.class1.sectionName || cq.class1.topic}\n2-сынып (${cq.class2.grade}): ${cq.class2.sectionName || cq.class2.topic}`,
+            72
+          ),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Педагогтің аты-жөні:' : 'ФИО педагога:', 28, true),
+          createBorderedCell(cq.teacherName || 'Каюпова Орынгуль Жумагалиевна', 72),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Күні және мектеп:' : 'Дата и школа:', 28, true),
+          createBorderedCell(`${cq.date || new Date().toISOString().split('T')[0]} | ${cq.schoolName || (isKk ? 'Шағын жинақты мектеп' : 'Малокомплектная школа')}`, 72),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Сыныптар мен оқушылар:' : 'Классы и учащиеся:', 28, true),
+          createBorderedCell(
+            `1-сынып (${cq.class1.grade}): ${cq.class1.studentsCount} оқушы (қатыспағандар: ${cq.class1.absentCount || 0})\n2-сынып (${cq.class2.grade}): ${cq.class2.studentsCount} оқушы (қатыспағандар: ${cq.class2.absentCount || 0})\n[Синхрондалған 45 минуттық ротациялық кесте]`,
+            72
+          ),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Сабақтың тақырыптары:' : 'Темы уроков:', 28, true),
+          createBorderedCell(
+            `1-сынып (${cq.class1.grade}): ${cq.class1.topic}\n2-сынып (${cq.class2.grade}): ${cq.class2.topic}`,
+            72
+          ),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Оқу бағдарламасына сәйкес оқыту мақсаттары:' : 'Цели обучения по программе:', 28, true),
+          createBorderedCell(
+            `1-сынып (${cq.class1.grade}): ${cq.class1.objectiveCode} — ${cq.class1.objectiveText}\n2-сынып (${cq.class2.grade}): ${cq.class2.objectiveCode} — ${cq.class2.objectiveText}`,
+            72
+          ),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Сабақтың мақсаттары:' : 'Цели уроков:', 28, true),
+          createBorderedCell(
+            `1-сынып (${cq.class1.grade}-сынып):\n${(cq.class1.lessonGoalsList || [cq.class1.lessonGoal]).join('\n')}\n\n2-сынып (${cq.class2.grade}-сынып):\n${(cq.class2.lessonGoalsList || [cq.class2.lessonGoal]).join('\n')}`,
+            72
+          ),
+        ],
+      }),
+      new TableRow({
+        children: [
+          createBorderedCell(isKk ? 'Оқулықтар мен баспалары:' : 'Учебники и издательства:', 28, true),
+          createBorderedCell(
+            `1-сынып: ${typeof cq.class1.textbookReference === 'string' ? cq.class1.textbookReference : (cq.class1.textbookReference?.publisher || '«Атамұра»') + ' (' + (cq.class1.textbookReference?.textbookTitle || `${cq.class1.grade}-сынып`) + ')'}\n2-сынып: ${typeof cq.class2.textbookReference === 'string' ? cq.class2.textbookReference : (cq.class2.textbookReference?.publisher || '«Мектеп»') + ' (' + (cq.class2.textbookReference?.textbookTitle || `${cq.class2.grade}-сынып`) + ')'}`,
+            72
+          ),
+        ],
+      }),
+    ],
+  });
+
+  // 2. 5-Column Synchronized Table
   const rows: TableRow[] = [
     new TableRow({
       tableHeader: true,
       children: [
         createBorderedCell(isKk ? 'Уақыт / Кезең' : 'Время / Этап', 12, true),
-        createBorderedCell(isKk ? 'Мұғалімнің үйлестіруі' : 'Координация учителя', 22, true),
-        createBorderedCell(`${cq.class1.grade}-сынып әрекеті`, 28, true),
-        createBorderedCell(`${cq.class2.grade}-сынып әрекеті`, 28, true),
+        createBorderedCell(isKk ? 'Мұғалімнің үйлестіруі (Мұғалім әрекеті)' : 'Координация учителя', 22, true),
+        createBorderedCell(`${cq.class1.grade}-сынып оқушыларының әрекеті (${cq.class1.studentsCount} оқушы)`, 28, true),
+        createBorderedCell(`${cq.class2.grade}-сынып оқушыларының әрекеті (${cq.class2.studentsCount} оқушы)`, 28, true),
         createBorderedCell(isKk ? 'Ресурстар' : 'Ресурсы', 10, true),
       ],
     }),
@@ -479,12 +553,53 @@ export async function exportCombinedQMZhToWord(cq: CombinedQMZhDocument): Promis
       new TableRow({
         children: [
           createBorderedCell(`${st.stageName}\n(${st.timeMinutes} мин)`, 12),
-          createBorderedCell(`${st.coordinationPrinciple}\n\n${st.teacherActionCombined}`, 22),
+          createBorderedCell(`[${st.coordinationPrinciple}]\n\n${st.teacherActionCombined}`, 22),
           createBorderedCell(`${st.class1StudentAction}\n\nБағалау: ${st.class1Assessment}`, 28),
           createBorderedCell(`${st.class2StudentAction}\n\nБағалау: ${st.class2Assessment}`, 28),
           createBorderedCell(st.resources, 10),
         ],
       })
+    );
+  }
+
+  // Appendix: Tasks for Class 1 & Class 2
+  const appendixParagraphs: Paragraph[] = [
+    new Paragraph({ spacing: { before: 240, after: 120 } }),
+    createHeading(isKk ? 'ҚОСЫМША: СЫНЫПТАРҒА АРНАЛҒАН ДЕҢГЕЙЛІК ТАПСЫРМАЛАР МЕН ТОЛЫҚ ЖАУАП КІЛТТЕРІ' : 'ПРИЛОЖЕНИЕ: УРОВНЕВЫЕ ЗАДАНИЯ И ПОЛНЫЕ КЛЮЧИ ОТВЕТОВ', true, 26, AlignmentType.LEFT),
+  ];
+
+  // Class 1 Tasks
+  appendixParagraphs.push(
+    createHeading(isKk ? `1-СЫНЫП (${cq.class1.grade}-сынып) ТАПСЫРМАЛАРЫ:` : `ЗАДАНИЯ ДЛЯ 1-ГО КЛАССА (${cq.class1.grade} КЛАСС):`, true, 24, AlignmentType.LEFT)
+  );
+  for (const t of cq.class1.tasks) {
+    appendixParagraphs.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [new TextRun({ text: `${t.levelName} (${t.criteria}):`, bold: true, size: 22, font: FONT_FAMILY })] }));
+    for (const [idx, p] of t.problems.entries()) {
+      appendixParagraphs.push(new Paragraph({ children: [new TextRun({ text: `${idx + 1}-есеп: ${p.statement}`, bold: true, size: 20, font: FONT_FAMILY })] }));
+      p.stepByStepSolution.forEach(s => appendixParagraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${s}`, size: 20, font: FONT_FAMILY })] })));
+      appendixParagraphs.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: `Дұрыс жауабы: ${p.answer} | Дескриптор: ${p.descriptorText} (${p.points} балл)`, bold: true, color: '059669', size: 20, font: FONT_FAMILY })] }));
+    }
+  }
+
+  // Class 2 Tasks
+  appendixParagraphs.push(
+    new Paragraph({ spacing: { before: 140, after: 80 } }),
+    createHeading(isKk ? `2-СЫНЫП (${cq.class2.grade}-сынып) ТАПСЫРМАЛАРЫ:` : `ЗАДАНИЯ ДЛЯ 2-ГО КЛАССА (${cq.class2.grade} КЛАСС):`, true, 24, AlignmentType.LEFT)
+  );
+  for (const t of cq.class2.tasks) {
+    appendixParagraphs.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [new TextRun({ text: `${t.levelName} (${t.criteria}):`, bold: true, size: 22, font: FONT_FAMILY })] }));
+    for (const [idx, p] of t.problems.entries()) {
+      appendixParagraphs.push(new Paragraph({ children: [new TextRun({ text: `${idx + 1}-есеп: ${p.statement}`, bold: true, size: 20, font: FONT_FAMILY })] }));
+      p.stepByStepSolution.forEach(s => appendixParagraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${s}`, size: 20, font: FONT_FAMILY })] })));
+      appendixParagraphs.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: `Дұрыс жауабы: ${p.answer} | Дескриптор: ${p.descriptorText} (${p.points} балл)`, bold: true, color: '059669', size: 20, font: FONT_FAMILY })] }));
+    }
+  }
+
+  if (cq.answerKeysCombined) {
+    appendixParagraphs.push(
+      new Paragraph({ spacing: { before: 140, after: 40 } }),
+      createHeading(isKk ? 'СИНХРОНДАУ КЕСТЕСІНІҢ ШЫҒАРЫЛУ ЖАУАПТАРЫ:' : 'ОТВЕТЫ СИНХРОНИЗИРОВАННОЙ ТАБЛИЦЫ:', true, 22, AlignmentType.LEFT),
+      new Paragraph({ children: [new TextRun({ text: cq.answerKeysCombined, size: 20, font: FONT_FAMILY })] })
     );
   }
 
@@ -500,22 +615,37 @@ export async function exportCombinedQMZhToWord(cq: CombinedQMZhDocument): Promis
           },
         },
         children: [
-          createHeading(cq.schoolName || (isKk ? 'Шағын жинақты мектеп' : 'Малокомплектная школа'), true, 26),
-          createHeading(isKk ? `БІРІКТІРІЛГЕН СЫНЫПТАР ҚМЖ (${cq.class1.grade} ЖӘНЕ ${cq.class2.grade}-СЫНЫПТАР)` : `КСП ДЛЯ СОВМЕЩЕННЫХ КЛАССОВ (${cq.class1.grade} И ${cq.class2.grade} КЛАССЫ)`, true, 28),
-          createMetaRow(isKk ? 'Педагогтің АӘТ' : 'ФИО педагога', cq.teacherName),
-          createMetaRow(isKk ? 'Күні / Ұзақтығы' : 'Дата / Время', `${cq.date}, 45 минут`),
-          createMetaRow(`1-сынып (${cq.class1.grade}-сынып)`, `${cq.class1.subject.toUpperCase()}: ${cq.class1.topic} (${cq.class1.objectiveCode})`),
-          createMetaRow(`2-сынып (${cq.class2.grade}-сынып)`, `${cq.class2.subject.toUpperCase()}: ${cq.class2.topic} (${cq.class2.objectiveCode})`),
-          new Paragraph({ spacing: { before: 120, after: 120 } }),
+          createHeading(
+            isKk 
+              ? `Қысқа мерзімді сабақ жоспары (Біріктірілген сыныптар)\n${cq.class1.grade} және ${cq.class2.grade}-сыныптар` 
+              : `Краткосрочный план урока (Совмещенные классы)\n${cq.class1.grade} и ${cq.class2.grade} классы`,
+            true,
+            28
+          ),
+          new Paragraph({
+            spacing: { before: 80, after: 120 },
+            children: [
+              new TextRun({
+                text: `${isKk ? 'Бекітемін:' : 'Утверждаю:'} ________________________`,
+                bold: true,
+                size: 24,
+                font: FONT_FAMILY,
+              }),
+            ],
+          }),
+          headerTable,
+          new Paragraph({ spacing: { before: 180, after: 100 } }),
+          createHeading(isKk ? 'Синхрондалған сабақ барысы (45 минут):' : 'Синхронизированный ход урока (45 минут):', true, 24),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows,
           }),
+          ...appendixParagraphs,
         ],
       },
     ],
   });
 
   const blob = await Packer.toBlob(doc);
-  downloadBlob(blob, `Combined_QMZh_${cq.class1.grade}_${cq.class2.grade}.docx`);
+  downloadBlob(blob, `Combined_QMZh_${cq.class1.grade}_${cq.class2.grade}_synyp.docx`);
 }
